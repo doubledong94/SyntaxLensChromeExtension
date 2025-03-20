@@ -1,0 +1,2 @@
+# SyntaxLensChromeExtension
+语法透视镜Chrom插件
