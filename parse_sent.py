@@ -1,13 +1,12 @@
 from flask import Flask, request, send_file, jsonify
-from flask_cors import CORS  # Import the CORS module
+from flask_cors import CORS
 from graphviz import Digraph
 import spacy
 import os
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes in the app
+CORS(app)
 
-# 加载英语模型 (只加载一次)
 try:
     nlp = spacy.load("en_core_web_lg")
 except OSError:
@@ -17,29 +16,59 @@ except OSError:
 
 
 def generate_dependency_tree(text):
-    """生成依赖树的PNG图像."""
     doc = nlp(text)
     data = []
 
+    # Collect token data and handle det relations
+    token_groups = {}  # Store groups of tokens for det relations
     for token in doc:
         data.append({"Index": token.i, "Token": token.text, "POS": token.pos_, "Dependency": token.dep_, "Head": token.head.text, "Head Index": token.head.i})
+
+        if token.dep_ in ["det", "compound","aux"]:
+            head_index = token.head.i
+            if head_index not in token_groups:
+                token_groups[head_index] = []
+            token_groups[head_index].append(token.i)
+
+    # Sort the det items by index
+    for key, value in token_groups.items():
+        token_groups[key] = sorted(value)
 
     dot = Digraph(comment="Dependency Parse Tree")
     dot.attr('node', shape='box')
 
+    # Add nodes (combine det-related tokens)
+    node_labels = {}
     for entry in data:
         index = entry["Index"]
         token = entry["Token"]
-        dot.node(str(index), label=token)
 
+        if index in token_groups:
+            if index not in node_labels:
+                node_labels[index] = ""
+            for det_index in token_groups[index]:
+                det_token_entry = next((e for e in data if e["Index"] == det_index), None)
+                if det_token_entry:
+                    node_labels[index] += det_token_entry['Token'] + " "
+
+            node_labels[index] += token
+
+        elif index not in [item for sublist in token_groups.values() for item in sublist]:
+
+            node_labels[index] = token
+
+    # Add nodes to the graph
+    for index, label in node_labels.items():
+        dot.node(str(index), label=label)
+
+    # Add edges (skip det relations)
     for entry in data:
         index = entry["Index"]
         head_index = entry["Head Index"]
         dependency = entry["Dependency"]
-        if index != head_index:
+        if index != head_index and entry["Dependency"] != "det" and index not in [item for sublist in token_groups.values() for item in sublist]:
             dot.edge(str(index), str(head_index), label=dependency)
 
-    # 使用临时文件名，避免冲突
     temp_filename = "dependency_tree_temp"
     dot.render(temp_filename, format="png", cleanup=True)
     return f"{temp_filename}.png"
@@ -47,7 +76,6 @@ def generate_dependency_tree(text):
 
 @app.route('/parse', methods=['POST'])
 def parse_sentence():
-    """API端点，接收文本并返回依赖树图像."""
     try:
         if 'text' not in request.form:
             return jsonify({'error': 'Missing "text" parameter'}), 400
@@ -66,7 +94,6 @@ def parse_sentence():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """健康检查接口"""
     return jsonify({'status': 'ok'}), 200
 
 
