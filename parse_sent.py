@@ -20,7 +20,7 @@ def should_merge(node1, node2, dependency):
     """
     判断两个节点是否应该合并。这里只定义 det 关系需要合并。
     """
-    if dependency in ["det", "aux", "compound", "cc", "conj"]:
+    if dependency in ['aux', 'auxpass', 'amod', 'advmod', 'acomp', 'compound', 'cc', 'case', 'det', 'mark', 'nummod', 'npadvmod', 'poss', 'prt', 'punct']:
         return True
     return False
 
