@@ -20,7 +20,8 @@ def should_merge(node1, node2, dependency):
     """
     判断两个节点是否应该合并。这里只定义 det 关系需要合并。
     """
-    if dependency in ['aux', 'auxpass', 'amod', 'advmod', 'acomp', 'compound', 'cc', 'case', 'det', 'mark', 'nummod', 'npadvmod', 'poss', 'prt', 'punct']:
+    if dependency in ['aux', 'auxpass', 'amod', 'advmod', 'acomp', 'compound', 'cc', 'case', 'det', 'mark', 'nummod',
+                      'npadvmod', 'poss', 'prt', 'predet','pobj', 'punct']:
         return True
     return False
 
@@ -86,6 +87,7 @@ def generate_dependency_tree(text):
     data = []
 
     for token in doc:
+        print(f"Token: {token.text}, POS: {token.pos_}/{spacy.explain(token.pos_)}, Dependency: {token.dep_}/{spacy.explain(token.dep_)}, Head: {token.head.text}, Head Index: {token.head.i}")
         data.append(
             {
                 "Index": token.i,
