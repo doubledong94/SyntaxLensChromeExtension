@@ -3,17 +3,27 @@ from flask_cors import CORS  # Import the CORS module
 from graphviz import Digraph
 import spacy
 import os
+import re
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes in the app
 
+def clean_string(input_str):
+    # 将回车符替换为空格
+    no_newline_str = input_str.replace('\n', ' ')
+
+    # 使用正则表达式将多个空格替换为一个空格
+    cleaned_str = re.sub(r'\s+', ' ', no_newline_str)
+
+    return cleaned_str
+
 # 加载英语模型 (只加载一次)
 try:
-    nlp = spacy.load("en_core_web_lg")
+    nlp = spacy.load("en_core_web_trf")
 except OSError:
-    print("Downloading en_core_web_lg model...")
-    spacy.cli.download("en_core_web_lg")
-    nlp = spacy.load("en_core_web_lg")
+    print("Downloading en_core_web_trf model...")
+    spacy.cli.download("en_core_web_trf")
+    nlp = spacy.load("en_core_web_trf")
 
 
 def should_merge(node1, node2, dependency):
@@ -100,6 +110,7 @@ def generate_dependency_tree(text):
                 "MergedNodes": []
             }
         )
+        print(f"Token: {token.text}, POS: {token.pos_}, Dependency: {token.dep_}, Head: {token.head.text}, Head Index: {token.head.i}")
 
     # 3. 合并节点后的树如果仍满足合并节点的要求，要继续合并，直到没有满足合并节点的关系为止
     while True:
@@ -150,6 +161,8 @@ def parse_sentence():
             return jsonify({"error": 'Missing "text" parameter'}), 400
 
         text = request.form["text"]
+        text = clean_string(text)
+        print(text)
         image_path = generate_dependency_tree(text)
 
         if not os.path.exists(image_path):
@@ -158,6 +171,7 @@ def parse_sentence():
         return send_file(image_path, mimetype="image/png")
 
     except Exception as e:
+        print(e)
         return jsonify({"error": str(e)}), 500
 
 
